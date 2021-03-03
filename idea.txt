@@ -1,0 +1,64 @@
+//
+// Template resolution: How does this determine which == to call?
+//
+struct Vector<N: int> {
+  static int Dim = N;
+  int[Dim] values = {0};
+}
+
+
+// Whoever creates the function, (there can only be one!), defines the
+// specialization resolution function, which given a list of T, picks one
+// of them, or fails. All specializers plug into that
+// by implementing a resolver which returns a T, or nothing.
+//
+// Some specializer resolutions could be as simple as choosing T=int,
+// and picking the smallest number.
+//
+// To make this not too tedious, we need some reasonable default resolution
+// functions and specializers.
+
+enum Resolved<T> {
+  Possible T;
+  Impossible;
+}
+
+template ==<T: Type> {
+  resolver: 
+}
+
+
+fn ==<T>[a:T b:T] {
+  [print "default implementation"]
+}
+
+fn ==<T> { 
+  T is Vector<5>
+} [a:T b:T] {
+  [print "Vector of Dim 5 is great!"];
+}
+
+fn ==<T> { 
+  T is string
+} [a:T b:T] {
+  [print "Found"];
+  [print "Found2"];
+}
+
+
+fn compare_vectors<N:int>[a:Vector<N> b:Vector<N>] {
+  [== a b]
+}
+
+Vector<5> a = ???;
+Vector<5> b = ???;
+Vector<4> c = ???;
+Vector<4> d = ???;
+
+// also, how we do remove the need to specify the template params here?
+a ==<Vector<5>> b; // should print "Vector of Dim 5 is great!"
+c ==<Vector<4>> d; // should print "Default implementation!"
+
+// 95% of the time, the template's type T is the same as the function
+// arguments T. So, just assume T is one of the function parameters and
+// see if it matches. If not, it is ambiguous and must be specified...
