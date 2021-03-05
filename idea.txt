@@ -43,6 +43,14 @@ fn ==<T> {
 } [a:T b:T] {
   [print "Found"];
   [print "Found2"];
+
+  if true { 
+     [print "you rock!"];
+  } else {
+
+  };
+
+
 }
 
 

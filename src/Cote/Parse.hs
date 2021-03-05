@@ -26,13 +26,31 @@ ast =
   <|> astBlock
   <|> astCall 
   <|> astInt 
-  <|> astSymbolOrBool
+  <|> astWord
 
 astInt :: Parser Ast
 astInt = AstInt <$> read <$> many1 digit
 
 astBlock :: Parser Ast
-astBlock = AstBlock <$> betweenChars '{' '}' (spacedMany (ast <* char ';'))
+astBlock = do
+  char '{'
+  asts <- statements []
+  return $ AstBlock asts
+  where 
+    statements asts = do
+      munch
+      a <- ast
+      let sofar = asts ++ [a]
+      munch
+      c <- oneOf ";}"
+      if c == '}' 
+         then return sofar
+         else do 
+           munch
+           e <- option ' ' (char '}')
+           if e == '}'
+              then return $ sofar ++ [AstVoid]
+              else statements sofar  
 
 astString :: Parser Ast
 astString =
@@ -58,15 +76,22 @@ astCall =
     functionArgs <- spacedMany ast
     return $ AstCall name templateArgs functionArgs
 
-astSymbolOrBool :: Parser Ast
-astSymbolOrBool = 
-  toAst <$> word
-    where 
-      toAst w = 
-        case w of
-          "true" -> AstBool True
-          "false" -> AstBool False
-          _ -> AstSymbol w  
+astWord :: Parser Ast
+astWord = do
+  w <- word
+  case w of
+    "true" -> return $ AstBool True
+    "false" -> return $ AstBool False
+    "if" -> astIfBody
+    _ -> return $ AstSymbol w  
+      
+
+astIfBody :: Parser Ast
+astIfBody = do
+  condition <- spaced ast
+  trueBlock <- spaced ast
+  falseBlock <- option AstVoid (string "else" *> spaced ast)  
+  return $ AstIf condition trueBlock falseBlock
 
 word :: Parser String
 word = many1 $ noneOf " \t\r\b\f\n<>[]{};"
