@@ -18,7 +18,7 @@ import Cote.Ast
 type Parser = Parsec Void String
 
 parseAstMaybe :: String -> Maybe Ast
-parseAstMaybe = parseMaybe (spaced ast)
+parseAstMaybe = parseMaybe (munch *> ast)
 
 ast :: Parser Ast
 ast = 
@@ -26,96 +26,100 @@ ast =
   <|> astBlock
   <|> astCall 
   <|> astInt 
-  <|> astWord
+  <|> do w <- wordm
+         case w of
+           "true"  -> return $ AstBool True
+           "false" -> return $ AstBool False
+           "if"    -> astIfBody
+           _       -> return $ AstSymbol w  
 
 astInt :: Parser Ast
-astInt = AstInt <$> read <$> many1 digit
+astInt = do
+  digits <- many1 (oneOf "0123456789" <?> "digit")
+  munch
+  return $ AstInt (read digits)  
 
 astBlock :: Parser Ast
 astBlock = do
-  char '{'
-  asts <- statements []
+  charm '{'
+  asts <- statements id
   return $ AstBlock asts
   where 
-    statements asts = do
+    statements f = do      
+      a <- ast      
+      c <- oneOf ";}" 
       munch
-      a <- ast
-      let sofar = asts ++ [a]
-      munch
-      c <- oneOf ";}"
       if c == '}' 
-         then return sofar
+         then return $ f [a]
          else do 
-           munch
-           e <- option ' ' (char '}')
-           if e == '}'
-              then return $ sofar ++ [AstVoid]
-              else statements sofar  
+           end <- option False (True <$ charm '}')
+           if end
+              then return $ f [a, AstVoid]
+              else statements (\x -> f (a:x))
 
 astString :: Parser Ast
-astString =
-  AstString <$> betweenChars '"' '"' (many chars)
-    where
-      chars = (char '\\' >> escaped) <|> noneOf ['"']
-      escaped = choice $ map escape escapedChars
-      escape (e,c) = char e >> return c
-      escapedChars = 
-        [('b', '\b')
-        ,('n', '\n')
-        ,('f', '\f')
-        ,('r', '\r')
-        ,('t', '\t')
-        ,('\\', '\\')
-        ,('"', '"')]
+astString = do
+  char '"'
+  content <- many chars
+  charm '"'
+  return $ AstString content
+  where
+    chars = (char '\\' *> escaped) <|> noneOf ['"']
+    escaped = choice $ map escape escapedChars
+    escape (e,c) = c <$ char e
+    escapedChars = 
+      [('b', '\b')
+      ,('n', '\n')
+      ,('f', '\f')
+      ,('r', '\r')
+      ,('t', '\t')
+      ,('\\', '\\')
+      ,('"', '"')]
 
 astCall :: Parser Ast
-astCall = 
-  betweenChars '[' ']' $ do
-    name <- spaced word
-    templateArgs <- betweenChars '<' '>' (spacedMany ast)
-    functionArgs <- spacedMany ast
-    return $ AstCall name templateArgs functionArgs
-
-astWord :: Parser Ast
-astWord = do
-  w <- word
-  case w of
-    "true" -> return $ AstBool True
-    "false" -> return $ AstBool False
-    "if" -> astIfBody
-    _ -> return $ AstSymbol w  
+astCall = betweenm '[' ']' $ do
+  name <- wordm
+  templateArgs <- betweenm '<' '>' (many ast)
+  functionArgs <- many ast
+  return $ AstCall name templateArgs functionArgs
       
-
 astIfBody :: Parser Ast
 astIfBody = do
-  condition <- spaced ast
-  trueBlock <- spaced ast
-  falseBlock <- option AstVoid (string "else" *> spaced ast)  
+  condition <- ast
+  trueBlock <- ast
+  falseBlock <- option AstVoid (stringm "else" *> ast)  
   return $ AstIf condition trueBlock falseBlock
 
-word :: Parser String
-word = many1 $ noneOf " \t\r\b\f\n<>[]{};"
+betweenm :: Char -> Char -> Parser a -> Parser a
+betweenm a b p = do
+  charm a
+  r <- p
+  charm b
+  return r
+
+wordm :: Parser String
+wordm = do
+  letters <- many1 $ noneOf " \t\r\b\f\n<>[]{};"
+  munch
+  return letters
+
+charm :: Char -> Parser Char
+charm a = do
+  c <- char a
+  munch
+  return c
+
+stringm :: String -> Parser String
+stringm a = do
+  s <- string a
+  munch
+  return a
 
 many1 :: Parser a -> Parser [a]
 many1 p = do
   x <- p
   xs <- many p
-  return (x:xs)
+  return $ x:xs
 
-whitespace :: Parser Char
-whitespace = oneOf " \t\r\b\f\n"
-
-digit :: Parser Char
-digit = oneOf "0123456789"
-
-munch :: Parser ()
-munch = void $ many $ whitespace
-
-spaced :: Parser a -> Parser a
-spaced p = munch *> p <* munch
-
-spacedMany :: Parser a -> Parser [a]
-spacedMany p = munch *> p `sepEndBy` munch
-
-betweenChars :: Char -> Char -> Parser a -> Parser a
-betweenChars s e = between (char s) (char e)
+munch :: Parser String
+munch = many $ oneOf " \t\r\b\f\n"
