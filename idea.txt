@@ -53,6 +53,11 @@ fn ==<T> {
 
 }
 
+fn what {
+  let a 5;
+  let b [+ 4 4];
+  [+ b c]
+}
 
 fn compare_vectors<N:int>[a:Vector<N> b:Vector<N>] {
   [== a b]

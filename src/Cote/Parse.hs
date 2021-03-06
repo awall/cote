@@ -31,6 +31,8 @@ ast =
            "true"  -> return $ AstBool True
            "false" -> return $ AstBool False
            "if"    -> astIfBody
+           "let"   -> astLetBody
+           "set"   -> astSetBody
            _       -> return $ AstSymbol w  
 
 astInt :: Parser Ast
@@ -87,8 +89,20 @@ astIfBody :: Parser Ast
 astIfBody = do
   condition <- ast
   trueBlock <- ast
-  falseBlock <- option AstVoid (stringm "else" *> ast)  
+  falseBlock <- option AstVoid (prefixm "else" *> ast)  
   return $ AstIf condition trueBlock falseBlock
+
+astLetBody :: Parser Ast
+astLetBody = do
+  name <- wordm
+  value <- ast  
+  return $ AstLet name value
+
+astSetBody :: Parser Ast
+astSetBody = do
+  name <- wordm
+  value <- ast  
+  return $ AstSet name value
 
 betweenm :: Char -> Char -> Parser a -> Parser a
 betweenm a b p = do
@@ -96,6 +110,13 @@ betweenm a b p = do
   r <- p
   charm b
   return r
+
+prefixm :: String -> Parser String
+prefixm a = do
+  s <- string a
+  lookAhead (oneOf " \t\r\b\f\n<>[]{};")
+  munch
+  return s
 
 wordm :: Parser String
 wordm = do
