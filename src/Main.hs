@@ -6,10 +6,31 @@ import Cote.Ast
 import Cote.Parse
 
 
-data Val = VoidV | IntV Int | StringV String | BoolV Bool | TypeError String
+data Type = VoidT | IntT | StringT | BoolT
   deriving (Show)
 
+data Val = 
+  VoidV
+  | IntV Int
+  | StringV String
+  | BoolV Bool
+  | FuncV Type [Type] ([Val] -> Val)
+  | TypeError String
+  
+instance Show Val where
+  show (VoidV) = "()"
+  show (IntV a) = show a
+  show (StringV s) = show s
+  show (BoolV True) = "true"
+  show (BoolV False) = "frue"
+  show (FuncV _ _ _) = "#function"
+  show (TypeError s) = "ERROR: " ++ s
+
 type Env = IORef [(String, IORef Val)]
+
+fPlus :: Val
+fPlus = 
+  FuncV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a + b))
 
 -- TODO: add errors, add type checking...
 getVar :: Env -> String -> IO Val
@@ -30,12 +51,6 @@ setVar e var val = do
       modifyIORef e ((var,ref):)
       return val
 
-main :: IO ()
-main = do
-  putStrLn "CoTE"
-  env <- nullEnv
-  repl env
-
 eval :: Env -> Ast -> IO Val
 eval e (AstSymbol name) = getVar e name
 eval e (AstLet name ast) = do
@@ -47,11 +62,7 @@ eval e (AstString s) = return $ StringV s
 eval e (AstIf (AstBool True) t f) = eval e t
 eval e (AstIf (AstBool False) t f) = eval e f
 eval e (AstIf _ t f) = return $ TypeError "If only works on booleans!"
-eval e (AstCall "upper" [AstSymbol "string"] [AstString s]) = return $ StringV (map toUpper s)
-
-eval e (AstCall "+" [AstSymbol "int"] [AstInt a, AstInt b]) = return $ IntV (a + b)
-eval e (AstCall "=" [AstSymbol "int"] [AstInt a, AstInt b]) = return $ BoolV (a == b)
-
+eval e (AstCall "upper" [AstString s]) = return $ StringV (map toUpper s)
 eval e (AstBlock (x:y:rest)) = eval e (AstBlock (y:rest))
 eval e (AstBlock [x]) = eval e x
 eval e (AstBlock []) = return $ VoidV
@@ -61,8 +72,15 @@ eval e (AstVoid) = return $ VoidV
 
 eval e _ = return $ StringV "not implemented!"
 
-nullEnv :: IO Env
-nullEnv = newIORef [] 
+sameTypes :: [Type] -> [Val] -> Bool
+sameTypes ts vs = True
+
+main :: IO ()
+main = do
+  putStrLn "CoTE"
+  fplus <- newIORef fPlus
+  env <- newIORef [("+", fplus)]
+  repl env
 
 repl :: Env -> IO ()
 repl env = do  

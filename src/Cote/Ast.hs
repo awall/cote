@@ -11,5 +11,5 @@ data Ast where
   AstVoid :: Ast
   AstIf :: Ast -> Ast -> Ast -> Ast
   AstSymbol :: String -> Ast
-  AstCall :: String -> [Ast] -> [Ast] -> Ast
+  AstCall :: String -> [Ast] -> Ast
   AstBlock :: [Ast] -> Ast

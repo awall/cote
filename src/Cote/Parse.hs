@@ -23,8 +23,7 @@ parseAstMaybe = parseMaybe (munch *> ast)
 ast :: Parser Ast
 ast = 
   astString 
-  <|> astBlock
-  <|> astCall 
+  <|> astBlock  
   <|> astInt 
   <|> do w <- wordm
          case w of
@@ -33,7 +32,7 @@ ast =
            "if"    -> astIfBody
            "let"   -> astLetBody
            "set"   -> astSetBody
-           _       -> return $ AstSymbol w  
+           _       -> ((charm '(') *> (astCallBody w)) <|> (return $ AstSymbol w)
 
 astInt :: Parser Ast
 astInt = do
@@ -78,12 +77,11 @@ astString = do
       ,('\\', '\\')
       ,('"', '"')]
 
-astCall :: Parser Ast
-astCall = betweenm '[' ']' $ do
-  name <- wordm
-  templateArgs <- betweenm '<' '>' (many ast)
+astCallBody :: String -> Parser Ast
+astCallBody name = do
   functionArgs <- many ast
-  return $ AstCall name templateArgs functionArgs
+  charm ')'
+  return $ AstCall name functionArgs
       
 astIfBody :: Parser Ast
 astIfBody = do
@@ -114,13 +112,13 @@ betweenm a b p = do
 prefixm :: String -> Parser String
 prefixm a = do
   s <- string a
-  lookAhead (oneOf " \t\r\b\f\n<>[]{};")
+  lookAhead (oneOf " \t\r\b\f\n<>(){};")
   munch
   return s
 
 wordm :: Parser String
 wordm = do
-  letters <- many1 $ noneOf " \t\r\b\f\n<>[]{};"
+  letters <- many1 $ noneOf " \t\r\b\f\n<>(){};"
   munch
   return letters
 
