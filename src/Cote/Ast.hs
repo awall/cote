@@ -12,4 +12,5 @@ data Ast where
   AstIf :: Ast -> Ast -> Ast -> Ast
   AstSymbol :: String -> Ast
   AstCall :: String -> [Ast] -> Ast
+  AstFn :: [(String, String)] -> Ast -> Ast
   AstBlock :: [Ast] -> Ast

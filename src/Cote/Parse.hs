@@ -32,6 +32,7 @@ ast =
            "if"    -> astIfBody
            "let"   -> astLetBody
            "set"   -> astSetBody
+           "fn"    -> astFnBody
            _       -> ((charm '(') *> (astCallBody w)) <|> (return $ AstSymbol w)
 
 astInt :: Parser Ast
@@ -77,6 +78,16 @@ astString = do
       ,('\\', '\\')
       ,('"', '"')]
 
+astFnBody :: Parser Ast
+astFnBody = do
+  args <- betweenm '(' ')' $ many $ do    
+    name <- wordm
+    charm ':'
+    typ <- wordm
+    return $ (name,typ)
+  body <- ast
+  return $ AstFn args body
+
 astCallBody :: String -> Parser Ast
 astCallBody name = do
   functionArgs <- many ast
@@ -112,13 +123,13 @@ betweenm a b p = do
 prefixm :: String -> Parser String
 prefixm a = do
   s <- string a
-  lookAhead (oneOf " \t\r\b\f\n<>(){};")
+  lookAhead (oneOf " \t\r\b\f\n<>(){};:")
   munch
   return s
 
 wordm :: Parser String
 wordm = do
-  letters <- many1 $ noneOf " \t\r\b\f\n<>(){};"
+  letters <- many1 $ noneOf " \t\r\b\f\n<>(){};:"
   munch
   return letters
 
