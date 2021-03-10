@@ -84,15 +84,17 @@ eval e (AstFn args body) = do
   closure <- readIORef e
   return $ FuncV typ typedArgs body closure
 
-
-eval e (AstIf (AstBool True) t f) = eval e t
-eval e (AstIf (AstBool False) t f) = eval e f
-eval e (AstIf _ t f) = return $ TypeError "If only works on booleans!"
-
-
-eval e (AstBlock (x:y:rest)) = eval e (AstBlock (y:rest))
 eval e (AstBlock [x]) = eval e x
+eval e (AstBlock (y:rest)) = eval e y >> eval e (AstBlock rest)
 eval e (AstBlock []) = return $ VoidV
+
+eval e (AstIf pred t f) = do
+  p <- eval e pred
+  case p of
+    BoolV True  -> eval e t
+    BoolV False -> eval e f
+    _           -> return $ TypeError "If only works on booleans!"
+
 
 eval e (AstInt i) = return $ IntV i
 eval e (AstString s) = return $ StringV s
