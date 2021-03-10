@@ -5,6 +5,7 @@ import Data.IORef
 import Cote.Ast
 import Cote.Parse
 
+type Closure = [(String, IORef Val)]
 
 data Type = VoidT | IntT | StringT | BoolT
   deriving (Show)
@@ -14,7 +15,8 @@ data Val =
   | IntV Int
   | StringV String
   | BoolV Bool
-  | FuncV Type [Type] ([Val] -> Val)
+  | BuiltinV Type [Type] ([Val] -> Val)
+  | FuncV Type [(String,Type)] Ast Closure
   | TypeError String
   
 instance Show Val where
@@ -23,14 +25,15 @@ instance Show Val where
   show (StringV s) = show s
   show (BoolV True) = "true"
   show (BoolV False) = "frue"
-  show (FuncV _ _ _) = "#function"
+  show (BuiltinV _ _ _) = "#builtin"
+  show (FuncV _ _ _ _) = "#function"
   show (TypeError s) = "ERROR: " ++ s
 
-type Env = IORef [(String, IORef Val)]
+type Env = IORef Closure
 
 fPlus :: Val
 fPlus = 
-  FuncV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a + b))
+  BuiltinV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a + b))
 
 -- TODO: add errors, add type checking...
 getVar :: Env -> String -> IO Val
@@ -57,16 +60,42 @@ eval e (AstLet name ast) = do
   v <- eval e ast
   setVar e name v
 
-eval e (AstInt i) = return $ IntV i
-eval e (AstString s) = return $ StringV s
+eval e (AstCall name args) = do 
+  maybeF <- getVar e name
+  case maybeF of
+    FuncV _ fargs ast closure -> do
+      newEnv <- newIORef closure
+      let registerVar (v, (name, typ)) = do 
+            x <- eval e v
+            setVar newEnv name x
+      mapM_ registerVar (zip args fargs)
+      eval newEnv ast
+    -- TODO: we need to do some type-checking methinks...
+    BuiltinV _ _ f -> do
+      vals <- mapM (eval e) args
+      return $ f vals
+    VoidV -> return $ TypeError "Not found!"
+    _ -> return $ TypeError "Not callable!"
+    
+
+eval e (AstFn args body) = do
+  typedArgs <- mapM (\(name,t) -> return (name, IntT)) args -- TODO: we need to get types from the strings... should use a lookup
+  typ <- return IntT -- TODO: we neeed to "type eval" the Ast to get this. or, just don't use it?
+  closure <- readIORef e
+  return $ FuncV typ typedArgs body closure
+
+
 eval e (AstIf (AstBool True) t f) = eval e t
 eval e (AstIf (AstBool False) t f) = eval e f
 eval e (AstIf _ t f) = return $ TypeError "If only works on booleans!"
-eval e (AstCall "upper" [AstString s]) = return $ StringV (map toUpper s)
+
+
 eval e (AstBlock (x:y:rest)) = eval e (AstBlock (y:rest))
 eval e (AstBlock [x]) = eval e x
 eval e (AstBlock []) = return $ VoidV
 
+eval e (AstInt i) = return $ IntV i
+eval e (AstString s) = return $ StringV s
 eval e (AstBool b) = return $ BoolV b
 eval e (AstVoid) = return $ VoidV
 
