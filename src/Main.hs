@@ -15,7 +15,7 @@ data Val =
   | IntV Int
   | StringV String
   | BoolV Bool
-  | BuiltinV Type [Type] ([Val] -> Val)
+  | BuiltinV Type [Type] ([Val] -> IO Val)
   | FuncV Type [(String,Type)] Ast Closure
   | TypeError String
   
@@ -69,7 +69,7 @@ eval e (AstCall name args) = do
     -- TODO: we need to do some type-checking methinks...
     BuiltinV _ _ f -> do
       vals <- mapM (eval e) args
-      return $ f vals
+      f vals
     VoidV -> return $ TypeError "Not found!"
     _ -> return $ TypeError "Not callable!"
     
@@ -102,16 +102,17 @@ eval e _ = return $ StringV "not implemented!"
 sameTypes :: [Type] -> [Val] -> Bool
 sameTypes ts vs = True
 
-fPlus, fEq, fLt, fGt, fAnd, fOr :: Val
-fPlus = BuiltinV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a + b))
-fMult = BuiltinV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a * b))
-fDiv = BuiltinV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a `div` b))
-fSub = BuiltinV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a - b))
-fEq = BuiltinV BoolT [IntT, IntT] (\[IntV a, IntV b] -> BoolV (a == b))
-fLt = BuiltinV BoolT [IntT, IntT] (\[IntV a, IntV b] -> BoolV (a < b))
-fGt = BuiltinV BoolT [IntT, IntT] (\[IntV a, IntV b] -> BoolV (a > b))
-fAnd = BuiltinV BoolT [BoolT, BoolT] (\[BoolV a, BoolV b] -> BoolV (a && b))
-fOr = BuiltinV BoolT [BoolT, BoolT] (\[BoolV a, BoolV b] -> BoolV (a || b))
+fPlus, fEq, fLt, fGt, fAnd, fOr, fPrint :: Val
+fPlus  = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a + b))
+fMult  = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a * b))
+fDiv   = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a `div` b))
+fSub   = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a - b))
+fEq    = BuiltinV BoolT [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ BoolV (a == b))
+fLt    = BuiltinV BoolT [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ BoolV (a < b))
+fGt    = BuiltinV BoolT [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ BoolV (a > b))
+fAnd   = BuiltinV BoolT [BoolT, BoolT] (\[BoolV a, BoolV b] -> return $ BoolV (a && b))
+fOr    = BuiltinV BoolT [BoolT, BoolT] (\[BoolV a, BoolV b] -> return $ BoolV (a || b))
+fPrint = BuiltinV VoidT [StringT]      (\[StringV s]        -> VoidV <$ putStrLn s)
 
 main :: IO ()
 main = do
@@ -125,7 +126,8 @@ main = do
     ( "<", fLt),
     ( ">", fGt),
     ("&&", fAnd),
-    ("||", fOr)]
+    ("||", fOr),
+    ("print", fPrint)]
   env <- newIORef fs
   repl env
   where builtins = mapM (\(name,f) -> (name,) <$> newIORef f)
