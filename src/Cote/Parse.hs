@@ -123,13 +123,13 @@ betweenm a b p = do
 prefixm :: String -> Parser String
 prefixm a = do
   s <- string a
-  lookAhead (oneOf " \t\r\b\f\n<>(){};:")
+  lookAhead (oneOf " \t\r\b\f\n(){};:")
   munch
   return s
 
 wordm :: Parser String
 wordm = do
-  letters <- many1 $ noneOf " \t\r\b\f\n<>(){};:"
+  letters <- many1 $ noneOf " \t\r\b\f\n(){};:"
   munch
   return letters
 

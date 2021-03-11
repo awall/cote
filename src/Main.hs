@@ -24,16 +24,12 @@ instance Show Val where
   show (IntV a) = show a
   show (StringV s) = show s
   show (BoolV True) = "true"
-  show (BoolV False) = "frue"
+  show (BoolV False) = "false"
   show (BuiltinV _ _ _) = "#builtin"
   show (FuncV _ _ _ _) = "#function"
   show (TypeError s) = "ERROR: " ++ s
 
 type Env = IORef Closure
-
-fPlus :: Val
-fPlus = 
-  BuiltinV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a + b))
 
 -- TODO: add errors, add type checking...
 getVar :: Env -> String -> IO Val
@@ -106,12 +102,33 @@ eval e _ = return $ StringV "not implemented!"
 sameTypes :: [Type] -> [Val] -> Bool
 sameTypes ts vs = True
 
+fPlus, fEq, fLt, fGt, fAnd, fOr :: Val
+fPlus = BuiltinV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a + b))
+fMult = BuiltinV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a * b))
+fDiv = BuiltinV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a `div` b))
+fSub = BuiltinV IntT [IntT, IntT] (\[IntV a, IntV b] -> IntV (a - b))
+fEq = BuiltinV BoolT [IntT, IntT] (\[IntV a, IntV b] -> BoolV (a == b))
+fLt = BuiltinV BoolT [IntT, IntT] (\[IntV a, IntV b] -> BoolV (a < b))
+fGt = BuiltinV BoolT [IntT, IntT] (\[IntV a, IntV b] -> BoolV (a > b))
+fAnd = BuiltinV BoolT [BoolT, BoolT] (\[BoolV a, BoolV b] -> BoolV (a && b))
+fOr = BuiltinV BoolT [BoolT, BoolT] (\[BoolV a, BoolV b] -> BoolV (a || b))
+
 main :: IO ()
 main = do
   putStrLn "CoTE"
-  fplus <- newIORef fPlus
-  env <- newIORef [("+", fplus)]
+  fs <- builtins [
+    ( "+", fPlus),
+    ( "*", fMult),
+    ( "/", fDiv),
+    ( "-", fSub),
+    ("==", fEq),
+    ( "<", fLt),
+    ( ">", fGt),
+    ("&&", fAnd),
+    ("||", fOr)]
+  env <- newIORef fs
   repl env
+  where builtins = mapM (\(name,f) -> (name,) <$> newIORef f)
 
 repl :: Env -> IO ()
 repl env = do  

@@ -38,4 +38,5 @@ executables:
     - -with-rtsopts=-N
     default-extensions:    
     - GADTs
+    - TupleSections
     - ViewPatterns
