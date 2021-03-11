@@ -103,16 +103,17 @@ sameTypes :: [Type] -> [Val] -> Bool
 sameTypes ts vs = True
 
 fPlus, fEq, fLt, fGt, fAnd, fOr, fPrint :: Val
-fPlus  = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a + b))
-fMult  = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a * b))
-fDiv   = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a `div` b))
-fSub   = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a - b))
-fEq    = BuiltinV BoolT [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ BoolV (a == b))
-fLt    = BuiltinV BoolT [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ BoolV (a < b))
-fGt    = BuiltinV BoolT [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ BoolV (a > b))
-fAnd   = BuiltinV BoolT [BoolT, BoolT] (\[BoolV a, BoolV b] -> return $ BoolV (a && b))
-fOr    = BuiltinV BoolT [BoolT, BoolT] (\[BoolV a, BoolV b] -> return $ BoolV (a || b))
-fPrint = BuiltinV VoidT [StringT]      (\[StringV s]        -> VoidV <$ putStrLn s)
+fPlus     = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a + b))
+fMult     = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a * b))
+fDiv      = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a `div` b))
+fSub      = BuiltinV IntT  [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ IntV  (a - b))
+fEq       = BuiltinV BoolT [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ BoolV (a == b))
+fLt       = BuiltinV BoolT [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ BoolV (a < b))
+fGt       = BuiltinV BoolT [IntT,  IntT]  (\[IntV  a, IntV  b] -> return $ BoolV (a > b))
+fAnd      = BuiltinV BoolT [BoolT, BoolT] (\[BoolV a, BoolV b] -> return $ BoolV (a && b))
+fOr       = BuiltinV BoolT [BoolT, BoolT] (\[BoolV a, BoolV b] -> return $ BoolV (a || b))
+fPrint    = BuiltinV VoidT [StringT]      (\[StringV s]        -> VoidV <$ putStrLn s)
+fToString = BuiltinV VoidT [VoidT]        (\[x]                -> return $ StringV (show x))
 
 main :: IO ()
 main = do
@@ -127,7 +128,8 @@ main = do
     ( ">", fGt),
     ("&&", fAnd),
     ("||", fOr),
-    ("print", fPrint)]
+    ("print", fPrint),
+    ("->string", fToString)]
   env <- newIORef fs
   repl env
   where builtins = mapM (\(name,f) -> (name,) <$> newIORef f)
